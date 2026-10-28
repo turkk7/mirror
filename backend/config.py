@@ -24,7 +24,9 @@ class Config:
     # الخادم
     HOST = os.environ.get("MIRROR_HOST", "0.0.0.0")
     PORT = int(os.environ.get("MIRROR_PORT", "8000"))
-    DEBUG = os.environ.get("MIRROR_DEBUG", "1") == "1"
+    # التنقيح اختياري بالطلب: الافتراضي معطّل (مُنقّح Werkzeug يتيح RCE عند الربط
+    # على 0.0.0.0، والمُعيد يفتح منفذ اللمس مرّتين). للتطوير: MIRROR_DEBUG=1 ./run.sh
+    DEBUG = os.environ.get("MIRROR_DEBUG", "0") == "1"
 
     # عنوان ثابت لروابط المشاركة (QR/التاق) بدل عنوان IP المتغيّر.
     # مثال: mirror.local — إن تُرك فارغاً نستخدم عنوان IP الحالي للشبكة.

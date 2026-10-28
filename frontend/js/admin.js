@@ -7,6 +7,7 @@
   var PIN_KEY = "mirror_admin_pin";
   var pin = null;
   var formFilled = false;
+  var refreshTimer = null;
 
   var $ = function (id) { return document.getElementById(id); };
   var AR = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
@@ -47,7 +48,18 @@
     $("gate").classList.add("hidden");
     $("dash").classList.remove("hidden");
     refresh();
-    setInterval(refresh, 3000);
+    if (!refreshTimer) refreshTimer = setInterval(refresh, 3000);
+  }
+
+  // إنهاء جلسة المشغّل: يمسح الرمز ويعيد البوابة — مهمّ على متصفّح مشترك.
+  function logout() {
+    pin = null;
+    try { sessionStorage.removeItem(PIN_KEY); } catch (e) {}
+    if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+    formFilled = false;
+    $("dash").classList.add("hidden");
+    $("gate").classList.remove("hidden");
+    $("pin").value = "";
   }
 
   function onLogin() {
@@ -56,7 +68,9 @@
     tryLogin(candidate).then(function (ok) {
       if (ok) {
         pin = candidate;
-        try { localStorage.setItem(PIN_KEY, pin); } catch (e) {}
+        // جلسة المشغّل فقط: sessionStorage يبقى عبر إعادة التحميل لكنه يُمسح بإغلاق
+        // التبويب — فلا يبقى الرمز على متصفّح مشترك (بخلاف localStorage الدائم).
+        try { sessionStorage.setItem(PIN_KEY, pin); } catch (e) {}
         showDash();
       } else {
         $("pin-err").textContent = "رمز غير صحيح";
@@ -101,7 +115,7 @@
       mirror_flip: $("s-mirror").checked,
       flash_enabled: $("s-flash").checked,
       print_enabled: $("s-print").checked,
-      copies: parseInt($("s-copies").value, 10) || 1,
+      copies: Math.min(5, Math.max(1, parseInt($("s-copies").value, 10) || 1)),
     };
     api("/api/settings", { method: "PUT", json: body }).then(function (r) {
       flash($("saved-msg"), r.ok ? "تم الحفظ ✓" : "تعذّر الحفظ", r.ok);
@@ -183,7 +197,7 @@
     api("/api/admin/pin", { method: "POST", json: { new_pin: np } }).then(function (r) {
       if (r.ok) {
         pin = np;
-        try { localStorage.setItem(PIN_KEY, pin); } catch (e) {}
+        try { sessionStorage.setItem(PIN_KEY, pin); } catch (e) {}
         $("s-newpin").value = "";
         flash($("pin-msg"), "تم تغيير الرمز ✓", true);
       } else {
@@ -207,10 +221,18 @@
     $("btn-pin").addEventListener("click", onPinChange);
     $("btn-reboot").addEventListener("click", onReboot);
     $("btn-poweroff").addEventListener("click", onPoweroff);
+    $("btn-logout").addEventListener("click", logout);
 
+    // تنظيف الرمز القديم الدائم من الأجهزة التي سجّلت قبل هذا التغيير.
+    try { localStorage.removeItem(PIN_KEY); } catch (e) {}
+
+    // استعادة جلسة التبويب الحالية فقط (sessionStorage) — لا يبقى بعد إغلاق التبويب.
     var saved = null;
-    try { saved = localStorage.getItem(PIN_KEY); } catch (e) {}
-    if (saved) tryLogin(saved).then(function (ok) { if (ok) { pin = saved; showDash(); } });
+    try { saved = sessionStorage.getItem(PIN_KEY); } catch (e) {}
+    if (saved) tryLogin(saved).then(function (ok) {
+      if (ok) { pin = saved; showDash(); }
+      else { try { sessionStorage.removeItem(PIN_KEY); } catch (e) {} }
+    });
   }
 
   init();

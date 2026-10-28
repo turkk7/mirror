@@ -68,11 +68,44 @@ class SettingsStore:
             return self._data["admin_pin"]
 
     # --- التعديل ---
+    # حدّ موثوق للتحقّق: الواجهة قابلة للتجاوز، فلا نثق بالقيم الواردة. القيم غير
+    # الصالحة تُتجاهَل (يبقى الإعداد القديم) بدل حفظ قيمة تالفة.
+    COPIES_MIN = 1
+    COPIES_MAX = 5
+
+    @staticmethod
+    def _clean(key, value):
+        """يتحقّق/يطبّع قيمة إعداد؛ None = غير صالحة فتُتجاهَل."""
+        if key == "copies":
+            try:
+                n = int(value)
+            except (TypeError, ValueError):
+                return None
+            return max(SettingsStore.COPIES_MIN, min(SettingsStore.COPIES_MAX, n))
+        if key in ("print_enabled", "mirror_flip", "flash_enabled"):
+            return bool(value)
+        if key == "timer_options":
+            if not isinstance(value, list):
+                return None
+            opts = []
+            for x in value:
+                try:
+                    n = int(x)
+                except (TypeError, ValueError):
+                    continue
+                if n > 0:
+                    opts.append(n)
+            return opts or None  # قائمة فارغة/غير صالحة = إبقاء القديم
+        return value
+
     def update(self, changes: dict) -> dict:
         with self._lock:
             for k, v in changes.items():
-                if k in EDITABLE:
-                    self._data[k] = v
+                if k not in EDITABLE:
+                    continue
+                cleaned = self._clean(k, v)
+                if cleaned is not None:
+                    self._data[k] = cleaned
             self._save()
             d = dict(self._data)
             d.pop("admin_pin", None)
