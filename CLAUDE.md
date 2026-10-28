@@ -64,4 +64,7 @@ On-device layout — these files live on the booth under user `turkk`, **not** i
 - **Remote access**: key-only SSH (`ssh qamra` from the dev Mac → `turkk@192.168.1.147`). **Tailscale** (host `qamra`) makes the operator panel reachable from anywhere at `http://<tailscale-ip>:8000/admin` without exposing it publicly — important because `/admin` is PIN-only.
 - **Caveats**: the operator PIN is still the default `1234` (change it); `ufw` is currently inactive; the battery no longer holds charge, so the booth powers off instantly when unplugged — it needs stable mains.
 
-To push code to the booth: edit on the dev Mac, `rsync` the changed files to `qamra:mirror/...`, then restart the kiosk (reboot, or relaunch `kiosk.sh` inside the Wayland session).
+To push code to the booth: edit on the dev Mac, `rsync` the changed files to `qamra:mirror/...`, then activate the changes:
+- **Backend changes** (`backend/`): `ssh qamra 'sudo systemctl restart qamra-backend.service'`. Relaunching `kiosk.sh` alone does **not** reload the backend — with `MIRROR_DEBUG=0` there is no auto-reloader, so edits stay inactive until the service restarts.
+- **Frontend changes** (`frontend/`): relaunch `kiosk.sh` inside the Wayland session (or reload the kiosk) to pick up the new static files.
+- **Either/both**: a full `reboot` restarts the backend service and the kiosk together.

@@ -49,14 +49,18 @@ pio device monitor -b 115200  # مراقبة الخرج الخام
 ثم من console المتصفّح (عبر operator panel أو جهاز مطوّر):
 
 ```js
-qamraTouch.raw()            // القيم الخام الحالية + خطّ الأساس
-// المس كل طرف ثم ثبّته:
-qamraTouch.markTopFar()     // أعلى الشاشة
-qamraTouch.markBottomNear() // أسفلها
-qamraTouch.markLeftFar()    // يسارها
-qamraTouch.markRightNear()  // يمينها
-qamraTouch.tune({ margin: 40, debounce: 3, syncMs: 80 }) // ضبط العتبات
+qamraTouch.raw()          // القيم الخام الحالية (d, v) + الموضع المحسوب ny
+// معايرة سريعة بنقطتين (حسّاس عمودي واحد):
+qamraTouch.markTop()      // ضع اليد أعلى منطقة الأزرار ثم نفّذه
+qamraTouch.markBottom()   // ثم أسفلها
+qamraTouch.tune({ minMm: 100, maxMm: 900 }) // ضبط بوابة المدى عند الحاجة
+qamraTouch.getCal()       // عرض المعايرة الحالية
+
+// معايرة كاملة بخمس نقاط (روتين تفاعلي على الشاشة):
+qamraTouch.calibrate()
 ```
 
-المعايرة تُحفظ في `localStorage` (تبقى بعد إعادة التحميل).
+المعايرة السريعة (`markTop`/`markBottom`/`tune`) تُحفظ في `localStorage` (تبقى بعد إعادة
+التحميل على هذا المتصفّح). أما `calibrate()` فيشغّل الروتين التفاعلي بخمس نقاط ويرسل
+النقاط للخادم (`POST /api/touch/cal`) فتسري على الكيوسك وتبقى بعد إعادة التشغيل.
 ```
