@@ -1,0 +1,27 @@
+/* الخطوط المستضافة محلياً (تعمل بدون إنترنت أثناء المناسبات) */
+
+@font-face {
+  font-family: "Tajawal";
+  src: url("../fonts/tajawal-300.woff2") format("woff2");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Tajawal";
+  src: url("../fonts/tajawal-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* اللاتيني (للأرقام والرموز) بنفس العائلة */
+@font-face {
+  font-family: "Tajawal";
+  src: url("../fonts/tajawal-latin-300.woff2") format("woff2");
+  font-weight: 300;
+  font-style: normal;
+  unicode-range: U+0000-00FF, U+2000-206F;
+  font-display: swap;
+}

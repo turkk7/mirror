@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>اختبار الحسّاس</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh; background: #000; color: #fff;
+    font-family: -apple-system, system-ui, sans-serif;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 24px; padding: 24px; text-align: center;
+  }
+  #num { font-size: clamp(72px, 28vw, 260px); font-weight: 800; line-height: 1;
+         font-variant-numeric: tabular-nums; letter-spacing: -2px; }
+  #num.stale { opacity: .3; }
+  #unit { font-size: 28px; color: #888; margin-top: -8px; }
+  #valid { font-size: 20px; }
+  .dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%;
+         background: #444; vertical-align: middle; margin-inline-start: 8px; }
+  .dot.ok { background: #35d07f; }
+  .dot.bad { background: #e5484d; }
+  #raw { font: 13px/1.5 monospace; color: #666; min-height: 20px; }
+  button { font-size: 20px; padding: 14px 32px; border: 0; border-radius: 999px;
+           background: #f1ece1; color: #111; font-weight: 700; cursor: pointer; }
+  button:disabled { opacity: .4; cursor: default; }
+  #err { color: #e5484d; font-size: 15px; min-height: 18px; }
+  .hint { color: #777; font-size: 14px; max-width: 420px; }
+</style>
+</head>
+<body>
+  <button id="connect">اتصل بالحسّاس</button>
+  <div id="stage" hidden>
+    <div id="num" class="stale">—</div>
+    <div id="unit">مليمتر</div>
+    <div id="valid">الصلاحية <span id="dot" class="dot"></span></div>
+  </div>
+  <div id="raw"></div>
+  <div id="err"></div>
+  <p class="hint">يتطلّب Google Chrome. اضغط «اتصل» ثم اختر منفذ الحسّاس (CH343 / USB Serial).</p>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let staleTimer = null;
+
+function show(dist, valid) {
+  $("num").textContent = dist;
+  $("num").classList.remove("stale");
+  const dot = $("dot");
+  dot.className = "dot " + (valid ? "ok" : "bad");
+  // لو توقّف الدفق، خفِّت الرقم.
+  clearTimeout(staleTimer);
+  staleTimer = setTimeout(() => $("num").classList.add("stale"), 800);
+}
+
+function handleLine(line) {
+  $("raw").textContent = line;
+  // صيغة برنامج الحسّاس الواحد: d=857mm valid=1
+  let m = line.match(/d=(\d+)mm\s+valid=([01])/);
+  if (m) { show(+m[1], m[2] === "1"); return; }
+  // صيغة البرنامج الكامل: R,dv,dh,vv,vh  (نعرض dv)
+  m = line.match(/^R,(\d+),(\d+),([01]),([01])/);
+  if (m) { show(+m[1], m[3] === "1"); return; }
+}
+
+async function connect() {
+  $("err").textContent = "";
+  if (!("serial" in navigator)) {
+    $("err").textContent = "المتصفّح لا يدعم Web Serial — استخدم Chrome.";
+    return;
+  }
+  let port;
+  try {
+    port = await navigator.serial.requestPort();
+    await port.open({ baudRate: 115200 });
+  } catch (e) {
+    $("err").textContent = "تعذّر فتح المنفذ: " + e.message;
+    return;
+  }
+  $("connect").disabled = true;
+  $("connect").textContent = "متصل";
+  $("stage").hidden = false;
+
+  const decoder = new TextDecoderStream();
+  port.readable.pipeTo(decoder.writable).catch(() => {});
+  const reader = decoder.readable.getReader();
+  let buf = "";
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += value;
+      let nl;
+      while ((nl = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, nl).trim();
+        buf = buf.slice(nl + 1);
+        if (line) handleLine(line);
+      }
+    }
+  } catch (e) {
+    $("err").textContent = "انقطع الاتصال: " + e.message;
+  }
+}
+
+$("connect").addEventListener("click", connect);
+</script>
+</body>
+</html>

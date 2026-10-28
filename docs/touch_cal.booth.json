@@ -1,0 +1,19 @@
+{
+  "_comment": "نسخة احتياطية من معايرة اللمس العاملة على البوث (2026-10-24، وضع Long، شاشة طولية). الملف الحيّ في data/touch_cal.json على البوث (مُستثنى من rsync/git). لاستعادتها: انسخ هذا إلى ~/mirror/data/touch_cal.json ثم أعد تشغيل qamra-backend، أو POST القيم إلى /api/touch/cal. أعد المعايرة فعلياً إن تغيّر موضع/ميل الحسّاس.",
+  "points": [
+    {"d": 98.0, "ny": 0.88},
+    {"d": 332.0, "ny": 0.7},
+    {"d": 615.0, "ny": 0.5},
+    {"d": 923.0, "ny": 0.3},
+    {"d": 1385.0, "ny": 0.12}
+  ],
+  "dTop": 540,
+  "dBottom": 37,
+  "minMm": 45,
+  "maxMm": 1500,
+  "pressFrames": 3,
+  "releaseFrames": 8,
+  "cooldownMs": 450,
+  "calibrate": false,
+  "rev": 0
+}

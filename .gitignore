@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+captures/
+data/
+frontend/assets/overlay.png
+.DS_Store
+certs/
+
+# PlatformIO build artifacts & downloaded libs (firmware)
+.pio/

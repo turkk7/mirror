@@ -1,0 +1,214 @@
+/* ============================================================
+   قمرا — الأساس: رموز التصميم + الخلفية المحيطة + علامة الهوية
+   مستوحى من الشعار: ضوء قمري كريمي على ليلٍ حِبري عميق.
+   ============================================================ */
+
+@import url("fonts.css");
+
+:root {
+  /* --- الألوان (مشتقّة من لوحة الشعار) --- */
+  --ink: #000000;           /* أسود دامس — خلفية الكشك (أفضل عكسًا في المرآة) */
+  --ink-2: #0d0e16;         /* لوح الشعار الداكن */
+  --cream: #f1ece1;         /* الكريمي القمري */
+  --fg: var(--cream);
+  --muted: #938e85;         /* نصوص ثانوية هادئة */
+  --gold: #c9a86a;          /* ذهبي دافئ — لمسة أنيقة */
+  --gold-soft: rgba(201, 168, 106, 0.5);
+  --gold-ghost: rgba(201, 168, 106, 0.14);
+  --moon: #d7dce8;          /* وميض قمري بارد (sheen) */
+  --ok: #7bd7a0;
+  --error: #eb6a6a;
+
+  --line: rgba(241, 236, 225, 0.1);
+  --bg: var(--ink);
+
+  /* --- التايبوغرافي --- */
+  --font: "Tajawal", -apple-system, "Segoe UI", system-ui, sans-serif;
+
+  /* مقياس حجم الخط (سلس عبر الشاشات) */
+  --fs-sm: clamp(0.82rem, 2vw, 0.98rem);
+  --fs-base: clamp(1rem, 2.4vw, 1.2rem);
+  --fs-lg: clamp(1.25rem, 3.4vw, 1.9rem);
+  --fs-xl: clamp(1.75rem, 5vw, 3rem);
+
+  /* --- المسافات والزوايا --- */
+  --sp-1: 8px;
+  --sp-2: 16px;
+  --sp-3: 24px;
+  --sp-4: clamp(24px, 4vh, 40px);
+  --r-sm: 12px;
+  --r-md: 18px;
+  --r-lg: 28px;
+  --r-pill: 999px;
+
+  /* --- الظلال --- */
+  --shadow-card: 0 40px 90px rgba(0, 0, 0, 0.55);
+  --glow-gold: 0 0 40px rgba(201, 168, 106, 0.3);
+  --glow-cream: 0 0 38px rgba(241, 236, 225, 0.3);
+  /* خطوط كريمية (بلون اللوقو) — بدائل للحدود الذهبية في عناصر اللمس */
+  --cream-line: rgba(241, 236, 225, 0.55);
+  --cream-line-soft: rgba(241, 236, 225, 0.28);
+
+  /* --- الحركة --- */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);        /* دخول ناعم */
+  --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+  --t-fast: 0.3s;
+  --t-med: 0.6s;
+  --t-slow: 0.9s;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font);
+  font-weight: 300;
+  background: var(--bg);
+  color: var(--fg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+  overscroll-behavior: none;
+  /* شاشة لمس: منع التحديد والتظليل + إلغاء تأخير النقر وإيماءات التكبير */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  /* cursor: none; */ /* مؤشر مخفي لوضع الكشك — معطّل مؤقتًا للاختبار */
+}
+
+/* ------------------------------------------------------------
+   الخلفية المحيطة: توهّج قمري/ذهبي يتحرك ببطء + حبيبات + إطار داكن.
+   داكنة عمداً: في المرآة تبقى الأجزاء الداكنة عاكسة.
+   ------------------------------------------------------------ */
+.ambient {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.ambient__glow {
+  display: none; /* خلفية سوداء دامسة: إخفاء التوهّج الملوّن المحيط */
+  position: absolute;
+  width: 90vmax;
+  height: 90vmax;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.5;
+  will-change: transform;
+}
+
+.ambient__glow--a {
+  top: -32vmax;
+  right: -20vmax;
+  background: radial-gradient(
+    circle at center,
+    rgba(201, 168, 106, 0.32),
+    transparent 60%
+  );
+  animation: drift-a 26s var(--ease-soft) infinite alternate;
+}
+
+.ambient__glow--b {
+  bottom: -36vmax;
+  left: -25vmax;
+  background: radial-gradient(
+    circle at center,
+    rgba(96, 116, 158, 0.3),
+    transparent 60%
+  );
+  animation: drift-b 32s var(--ease-soft) infinite alternate;
+}
+
+/* حبيبات دقيقة (film grain) عبر SVG مضمّن */
+.ambient__grain {
+  position: absolute;
+  inset: -50%;
+  width: 200%;
+  height: 200%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.04;
+  mix-blend-mode: overlay;
+  animation: grain 1.2s steps(6) infinite;
+}
+
+/* إطار داكن (vignette) لتركيز المنتصف */
+.ambient::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 44%,
+    rgba(0, 0, 0, 0.58) 100%
+  );
+}
+
+@keyframes drift-a {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(-8vmax, 6vmax, 0) scale(1.12); }
+}
+
+@keyframes drift-b {
+  from { transform: translate3d(0, 0, 0) scale(1.05); }
+  to { transform: translate3d(7vmax, -5vmax, 0) scale(0.95); }
+}
+
+@keyframes grain {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(-4%, 3%); }
+  40% { transform: translate(3%, -4%); }
+  60% { transform: translate(-3%, -2%); }
+  80% { transform: translate(4%, 4%); }
+  100% { transform: translate(0, 0); }
+}
+
+/* ------------------------------------------------------------
+   توقيع العلامة الهادئ (أعلى الشاشات الثانوية)
+   ------------------------------------------------------------ */
+.sig {
+  position: fixed;
+  top: max(22px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  opacity: 0;
+  transition: opacity var(--t-med) var(--ease);
+  pointer-events: none;
+}
+
+/* يظهر التوقيع على الشاشات الثانوية فقط (لا على الانتظار/الالتقاط) */
+#stage[data-active="chooser"] ~ .sig,
+#stage[data-active="result"] ~ .sig,
+#stage[data-active="printing"] ~ .sig,
+#stage[data-active="done"] ~ .sig,
+#stage[data-active="paused"] ~ .sig,
+#stage[data-active="finished"] ~ .sig { opacity: 0.42; }
+
+.sig__mark {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+}
+
+.sig__word {
+  font-size: 0.92rem;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  color: var(--cream);
+}

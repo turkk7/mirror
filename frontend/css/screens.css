@@ -1,0 +1,676 @@
+/* ============================================================
+   قمرا — الشاشات: نظام التنقّل + كل شاشات تجربة الضيف
+   ============================================================ */
+
+/* --- حاوية الشاشات وانتقالاتها --- */
+.stage {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+}
+
+.screen {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: max(28px, env(safe-area-inset-top)) 28px
+    max(28px, env(safe-area-inset-bottom));
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(1.04);
+  filter: blur(6px);
+  transition:
+    opacity var(--t-med) var(--ease),
+    transform var(--t-slow) var(--ease),
+    filter var(--t-med) var(--ease);
+}
+
+.screen.is-active {
+  opacity: 1;
+  visibility: visible;
+  transform: scale(1);
+  filter: blur(0);
+}
+
+.screen.is-leaving {
+  opacity: 0;
+  transform: scale(0.965);
+  filter: blur(8px);
+}
+
+/* ============================================================
+   شاشة الانتظار (Attract) — لوحة الهوية
+   ============================================================ */
+.attract { text-align: center; }
+
+.attract__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(22px, 4vh, 44px);
+}
+
+/* لوحة الشعار: توهّج قمري + صورة الشعار + وميض يمرّ عليها */
+.brand {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: clamp(420px, 62vh, 2600px); /* أكبر بكثير — مناسب للشاشة العمودية */
+  aspect-ratio: 379 / 602; /* نسبة الشعار عالي الدقة المقصوص */
+  will-change: transform;
+  animation: brand-float 7s var(--ease-soft) infinite;
+}
+
+/* هالة ضوء خلف رمز العدسة (أعلى الشعار) تتنفّس ببطء */
+.brand__halo {
+  position: absolute;
+  inset: -12% -22%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 34%,
+    rgba(215, 220, 232, 0.16),
+    rgba(201, 168, 106, 0.09) 40%,
+    transparent 66%
+  );
+  filter: blur(28px);
+  animation: halo-breathe 5.5s var(--ease-soft) infinite;
+}
+
+.brand__img {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 0;
+  transform: translateY(10px) scale(0.98);
+  animation: brand-in 1.3s var(--ease) 0.15s forwards;
+}
+
+/* وميض قمري يمرّ على الشعار (محصور بصورة الشعار عبر القناع) */
+.brand__sheen {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  -webkit-mask: url("../assets/brand/qamra-lockup-hi.png") center / contain no-repeat;
+  mask: url("../assets/brand/qamra-lockup-hi.png") center / contain no-repeat;
+  background: linear-gradient(
+    115deg,
+    transparent 42%,
+    rgba(215, 220, 232, 0.55) 50%,
+    transparent 58%
+  );
+  background-size: 260% 100%;
+  background-position: 160% 0;
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: sheen 6.5s var(--ease-soft) 1.6s infinite;
+}
+
+/* دعوة اللمس — نص هادئ يتنفّس ببطء (بساطة مقصودة) */
+.attract__cta {
+  font-size: clamp(1.5rem, 4.5vw, 4rem); /* أكبر وأوضح على الشاشة العمودية */
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  opacity: 0;
+  animation:
+    rise 1s var(--ease) 0.8s forwards,
+    cta-breathe 4.2s var(--ease-soft) 2s infinite;
+}
+
+/* ضغطة اللمس: ارتداد لطيف للوحة الشعار */
+#attract-hero.is-pressed { animation: press 0.5s var(--ease); }
+
+@keyframes brand-in {
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes brand-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes halo-breathe {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+
+@keyframes sheen {
+  0% { background-position: 160% 0; opacity: 0; }
+  12% { opacity: 1; }
+  45% { background-position: -60% 0; opacity: 1; }
+  60%, 100% { background-position: -60% 0; opacity: 0; }
+}
+
+@keyframes cta-breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@keyframes press {
+  0% { transform: scale(1); }
+  35% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+/* ============================================================
+   شاشة التوقّف (ثيم المناسبة) — صورة تملأ الشاشة، تُغلق باللمس
+   ============================================================ */
+.screen.screensaver { padding: 0; }
+
+.screensaver__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* تملأ الـ٥٥″ العمودية (قد تُقصّ الأطراف) */
+  background: #000;
+  display: block;
+}
+
+/* ============================================================
+   شاشة اختيار مدة المؤقت — قائمة عدسات عمودية
+   صُمّمت رأسياً عمداً للمس الخشن (ToF): الفصل على محور Y أدقّ وأمتن
+   من الأفقي (تداخل الساعد على X)، والأهداف عريضة ومتباعدة وبعيدة عن الحواف.
+   ============================================================ */
+/* يملأ الحيّز العمودي للشاشة الكبيرة (٥٥″ عمودي): الأهداف تكبر بوحدات vh/vw
+   لا بسقوف بكسل — كلما كبُر الهدف الفعلي زادت كفاءة حسّاس ToF ودقّته. */
+/* تخطيط تحريري: محاذاة كاملة العرض، العنوان في الأعلى والقائمة تملأ الباقي */
+.chooser__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: clamp(18px, 3.5vh, 56px);
+  width: min(86vw, 880px);
+  height: 86vh;
+}
+
+/* عنوان هادئ بمحاذاة البداية (يمين RTL) — تسمية قسم تحريرية بلا زخرفة */
+.chooser__title {
+  flex: none;
+  align-self: flex-start;
+  margin: 0;
+  font-size: max(0.9rem, 2vh);
+  font-weight: 300;
+  letter-spacing: 0.42em;
+  color: var(--muted);
+  opacity: 0;
+  animation: rise 0.7s var(--ease) 0.1s forwards;
+}
+/* ملاحظة: نستخدم max(floor, vh) للعناصر الأساسية بلا سقف أعلى —
+   فالبوث 4K (vh≈38px) يحتاج مقاسات أكبر من أي سقف rem معقول. */
+
+/* قائمة عمودية من عدسات متّحدة المركز، يصل بينها خيط أبيض رفيع.
+   طول الخيط = المسافة بين العدسات (--opt-gap) فيتطابقان تماماً. */
+.chooser__options {
+  --opt-gap: clamp(26px, 6.5vh, 100px);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--opt-gap);
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+}
+
+/* الخيار = عدسة دائرية (الحلقة الخارجية هي حدّ الزرّ) تحمل الرقم في مركزها.
+   الزرّ نفسه هو الدائرة — هدف لمس دائري واسع ومتّصل. */
+.timer-opt {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: min(22vh, 58vw);
+  aspect-ratio: 1;
+  flex: none;
+  padding: 0;
+  background: transparent;
+  border: max(2px, 0.28vh) solid #fff;      /* الحلقة الخارجية */
+  border-radius: 50%;
+  color: var(--cream);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  opacity: 0;
+  transform: translateY(20px) scale(0.96);
+  animation: rise 0.7s var(--ease) forwards;
+  transition:
+    transform var(--t-fast) var(--ease),
+    box-shadow var(--t-fast) var(--ease),
+    border-color var(--t-fast) var(--ease);
+}
+
+.timer-opt:nth-child(1) { animation-delay: 0.22s; }
+.timer-opt:nth-child(2) { animation-delay: 0.34s; }
+.timer-opt:nth-child(3) { animation-delay: 0.46s; }
+.timer-opt:nth-child(4) { animation-delay: 0.58s; }
+
+/* الحلقتان الداخليتان حول المركز — تحاكيان عدسة الصورة المرفقة */
+.timer-opt__core {
+  position: absolute;
+  width: 48%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: max(1.5px, 0.22vh) solid #fff;
+  pointer-events: none;
+}
+.timer-opt__core::before {
+  content: "";
+  position: absolute;
+  inset: 16%;
+  border-radius: 50%;
+  border: max(1.5px, 0.22vh) solid rgba(255, 255, 255, 0.85);
+}
+
+/* الرقم في مركز العدسة */
+.timer-opt__num {
+  position: relative;
+  z-index: 1;
+  font-size: max(1.4rem, 5.5vh);
+  font-weight: 300;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--cream);
+  pointer-events: none;                      /* كل نقرة تُسنَد للزرّ */
+  transition:
+    color var(--t-fast) var(--ease),
+    text-shadow var(--t-fast) var(--ease);
+}
+
+/* الخيط الأبيض الرفيع يصل كل عدسة بالتي تحتها (عدا الأخيرة) */
+.timer-opt:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: max(1.5px, 0.2vh);
+  height: var(--opt-gap);
+  transform: translateX(-50%);
+  background: #fff;
+  pointer-events: none;
+}
+
+/* تلميح فأرة فقط (الاختبار) */
+@media (hover: hover) {
+  .timer-opt:hover {
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.4), 0 0 30px rgba(255, 255, 255, 0.12);
+  }
+}
+
+/* تغذية لمس واضحة — توهّج أبيض حول العدسة والرقم يسطع */
+.timer-opt:active {
+  transform: translateY(0) scale(0.97);
+  box-shadow: 0 0 40px rgba(255, 255, 255, 0.35), inset 0 0 24px rgba(255, 255, 255, 0.12);
+}
+.timer-opt:active .timer-opt__num {
+  color: #fff;
+  text-shadow: 0 0 24px rgba(255, 255, 255, 0.5);
+}
+
+/* ============================================================
+   شاشة الالتقاط — معاينة حيّة بملء الشاشة (مرآة كاملة)
+   ملاحظة: الصورة النهائية تُقصّ 2:3 في camera.js؛ المعاينة الآن أوسع
+   من القصّ النهائي عمداً (ملء المرآة) — لم تعد WYSIWYG بالنسبة.
+   ============================================================ */
+
+/* المعاينة تملأ الشاشة بالكامل بلا بطاقة/هوامش */
+.screen.capture { padding: 0; }
+
+.capture__stage {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+}
+
+/* منطقة الصورة الحيّة (2:3) — نفس قصّ الصورة الفعلية تماماً */
+.capture__frame {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  overflow: hidden;
+  background: #000;
+  container-type: size; /* لقياس عناصر العدّاد نسبةً للإطار */
+}
+
+/* زوايا محدِّد المنظر فوق المعاينة */
+.viewfinder {
+  position: absolute;
+  inset: clamp(12px, 3%, 26px);
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.screen.capture.is-active .viewfinder {
+  animation: rise 0.7s var(--ease) 0.2s forwards;
+}
+
+.viewfinder__corner {
+  position: absolute;
+  width: 8cqw;
+  height: 8cqw;
+  max-width: 42px;
+  max-height: 42px;
+  border: 2px solid rgba(241, 236, 225, 0.6);
+}
+.viewfinder__corner--tl { top: 0; left: 0; border-right: 0; border-bottom: 0; border-radius: 6px 0 0 0; }
+.viewfinder__corner--tr { top: 0; right: 0; border-left: 0; border-bottom: 0; border-radius: 0 6px 0 0; }
+.viewfinder__corner--bl { bottom: 0; left: 0; border-right: 0; border-top: 0; border-radius: 0 0 0 6px; }
+.viewfinder__corner--br { bottom: 0; right: 0; border-left: 0; border-top: 0; border-radius: 0 0 6px 0; }
+
+/* طبقة الإرشاد والعدّاد فوق الصورة */
+.capture__hud {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.capture__prompt {
+  position: absolute;
+  top: 6%;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: clamp(0.95rem, 4cqw, 1.5rem);
+  font-weight: 300;
+  letter-spacing: 0.1em;
+  color: var(--cream);
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.7);
+}
+
+/* ============================================================
+   العدّاد التنازلي = رقم ضخم جداً فوق المعاينة الحيّة. تصميم مبسّط
+   إلى أقصى حدّ: لا حلقة ولا عجلة — فقط الرقم يتناقص في المركز.
+   الأبعاد نسبيّة لإطار المعاينة (container-type: size).
+   ============================================================ */
+.countdown {
+  display: grid;
+  place-items: center;
+}
+
+.capture__count {
+  font-size: min(72cqw, 56cqh);   /* ضخم جداً — يملأ الإطار */
+  font-weight: 300;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--cream);
+  text-shadow: 0 6px 50px rgba(0, 0, 0, 0.6);  /* وضوح فوق الكاميرا */
+}
+
+/* ظهور ناعم لكل رقم مع كل ثانية — بساطة بلا حيَل */
+.capture__count.is-tick { animation: count-pop 0.9s var(--ease); }
+
+@keyframes count-pop {
+  0%   { opacity: 0; transform: scale(1.12); }
+  25%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* ============================================================
+   شاشة النتيجة — بطاقة طباعة بروح الفيلم + توقيع العلامة
+   ============================================================ */
+.result__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(22px, 3.4vh, 72px);
+  /* عمود واحد يحدّد عرض البطاقة والأزرار معاً فيملأ الشاشة الكبيرة */
+  width: min(70vw, 37vh);
+}
+
+.result__frame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.screen.result.is-active .result__frame {
+  animation: photo-in 1s var(--ease) both;
+}
+
+/* بطاقة الصورة — تعرض الصورة النهائية كما هي (الشريط السفلي مدموج فيها) */
+.result__card {
+  width: 100%;
+  border-radius: clamp(12px, 1.6vh, 30px);
+  overflow: hidden;
+  background: #201b18;
+  box-shadow: var(--shadow-card);
+}
+
+.result__photo-wrap {
+  position: relative;
+  width: 100%;
+  line-height: 0; /* إزالة الفراغ أسفل الصورة */
+  background: #201b18;
+}
+
+.result__photo {
+  display: block;
+  width: 100%;
+  height: auto; /* نسبة الصورة الطبيعية (صورة + شريط اللوقو) */
+  background: #201b18;
+}
+
+.result__photo.is-mirrored { transform: scaleX(-1); }
+
+.result__overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.result__sign img { width: 18px; height: 18px; object-fit: contain; }
+
+.result__sign span {
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  color: #2a2320;
+}
+
+@keyframes photo-in {
+  0% { opacity: 0; transform: translateY(26px) scale(0.92) rotate(-1.5deg); }
+  100% { opacity: 1; transform: translateY(0) scale(1) rotate(0); }
+}
+
+/* --- الأزرار --- عمود بعرض البطاقة نفسها، أهداف لمس كبيرة تملأ الشاشة --- */
+.result__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  gap: clamp(14px, 2.2vh, 44px);
+  animation: rise 0.7s var(--ease) 0.5s both;
+}
+
+/* صفّ أفقي نادر الاستخدام — مع ToF يُفضّل التكديس العمودي دائماً */
+.result__actions-row { display: flex; gap: clamp(18px, 4vw, 28px); }
+
+.btn {
+  font-family: var(--font);
+  font-size: max(1.1rem, 3vh);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--fg);
+  border: none;
+  border-radius: var(--r-pill);
+  padding: 0 clamp(34px, 5vw, 100px);
+  min-height: max(64px, 10vh);
+  min-width: 200px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform var(--t-fast) var(--ease),
+    background var(--t-fast) var(--ease),
+    box-shadow var(--t-fast) var(--ease);
+}
+
+/* الزرّ الأساسي (اطبع) يملأ عرض العمود */
+.result__actions .btn { width: 100%; }
+
+.btn:active { transform: scale(0.95); }
+
+.btn--primary {
+  color: #201b18;
+  background: linear-gradient(180deg, #f6f2e9, #e4dccb);
+  box-shadow: 0 12px 34px rgba(241, 236, 225, 0.22);
+}
+
+.btn--ghost {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgba(241, 242, 238, 0.28);
+}
+
+/* زر العودة للرئيسية — إجراء ثانوي هادئ، لكنه هدف لمس كامل (ليس رابطاً نصّياً) */
+.btn--home {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  gap: clamp(10px, 1.4vh, 28px);
+  width: 82%;
+  min-height: max(54px, 7vh);
+  padding: 0 clamp(26px, 4vw, 80px);
+  background: transparent;
+  border: 1px solid rgba(241, 236, 225, 0.18);
+  border-radius: var(--r-pill);
+  font-family: var(--font);
+  font-size: max(0.95rem, 2.4vh);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: rgba(241, 236, 225, 0.62);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    color var(--t-fast) var(--ease),
+    border-color var(--t-fast) var(--ease),
+    box-shadow var(--t-fast) var(--ease),
+    transform var(--t-fast) var(--ease);
+}
+
+@media (hover: hover) {
+  .btn--home:hover { color: var(--cream); border-color: var(--cream-line-soft); }
+}
+
+.btn--home:active {
+  transform: scale(0.96);
+  color: var(--cream);
+  border-color: var(--cream);
+  box-shadow: var(--glow-cream);
+}
+
+.btn--home__icon {
+  width: max(22px, 2.6vh);
+  height: max(22px, 2.6vh);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ============================================================
+   شاشة المشاركة الرقمية (QR)
+   ============================================================ */
+.share__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(22px, 4vh, 36px);
+  text-align: center;
+}
+
+.share__title {
+  font-size: clamp(1.15rem, 3vw, 1.6rem);
+  font-weight: 300;
+  letter-spacing: 0.04em;
+}
+
+.share__qr {
+  padding: 20px;
+  background: #f6f4ef;
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-card);
+  animation: photo-in 0.8s var(--ease) both;
+}
+
+.share__qr svg {
+  display: block;
+  width: clamp(200px, 34vh, 300px);
+  height: auto;
+}
+
+.share__hint { font-size: var(--fs-base); color: var(--muted); }
+
+/* ============================================================
+   شاشات الحالة (طباعة / تأكيد / إيقاف / اكتمال)
+   ============================================================ */
+/* مُقاسة بوحدات vh لتملأ شاشة الـ٥٥″ العمودية، وبلون اللوقو الكريمي بدل الذهبي */
+.status-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(24px, 4.5vh, 90px);
+  text-align: center;
+  padding: 0 6vw;
+}
+
+.status-view__text {
+  font-size: max(1.5rem, 3.8vh);
+  font-weight: 300;
+  letter-spacing: 0.04em;
+  line-height: 1.25;
+}
+
+.status-view__sub { font-size: max(1rem, 2.4vh); color: var(--muted); }
+
+/* مؤشّر دوران = حلقة عدسة (كريمي) */
+.spinner {
+  width: max(64px, 9vh);
+  height: max(64px, 9vh);
+  border-radius: 50%;
+  border: max(3px, 0.6vh) solid rgba(241, 236, 225, 0.18);
+  border-top-color: var(--cream);
+  animation: spin 0.9s linear infinite;
+}
+
+/* علامة الصح المتحرّكة (كريمية) */
+.check svg {
+  width: max(88px, 12vh);
+  height: max(88px, 12vh);
+  fill: none;
+  stroke: var(--cream);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.screen.done.is-active .check svg path {
+  stroke-dasharray: 60;
+  stroke-dashoffset: 60;
+  animation: draw-check 0.6s var(--ease) 0.15s forwards;
+}
+
+@keyframes draw-check { to { stroke-dashoffset: 0; } }

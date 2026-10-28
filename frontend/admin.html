@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>قمرا — لوحة المشغّل</title>
+    <meta name="theme-color" content="#0b0c12" />
+    <link rel="icon" type="image/png" href="assets/brand/favicon-48.png" />
+    <link rel="apple-touch-icon" href="assets/brand/apple-touch-icon.png" />
+    <link rel="stylesheet" href="css/fonts.css" />
+    <style>
+      :root {
+        --bg: #0b0c12; --card: #14151e; --fg: #f1ece1; --muted: #938e85;
+        --accent: #c9a86a; --ok: #7bd7a0; --warn: #e6b566; --error: #eb6a6a;
+        --line: rgba(241, 236, 225, 0.09);
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        min-height: 100dvh; font-family: "Tajawal", -apple-system, system-ui, sans-serif;
+        font-weight: 300; background: var(--bg); color: var(--fg);
+        -webkit-font-smoothing: antialiased;
+        padding: 24px 20px calc(48px + env(safe-area-inset-bottom));
+        max-width: 560px; margin-inline: auto;
+      }
+      .hidden { display: none !important; }
+
+      /* بوابة الرمز */
+      .gate { min-height: 80dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
+      .gate__mark { width: 72px; height: 72px; object-fit: contain; margin-bottom: 4px; }
+      .gate h1 { font-weight: 500; letter-spacing: 0.05em; }
+      .brandmark { width: 30px; height: 30px; object-fit: contain; }
+      .head__title { display: flex; align-items: center; gap: 10px; }
+      .pin { width: 200px; text-align: center; font-size: 1.6rem; letter-spacing: 0.5em; color: var(--fg); background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+      .pin:focus { outline: 1px solid var(--accent); }
+      .gate .err { color: var(--error); font-size: 0.9rem; min-height: 1.2em; }
+
+      /* رأس */
+      .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
+      .head h1 { font-size: 1.3rem; font-weight: 400; letter-spacing: 0.04em; }
+      .dot { display: inline-flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--muted); }
+      .dot::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 10px var(--ok); }
+
+      /* إحصاءات */
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+      .stat { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
+      .stat--wide { grid-column: 1 / -1; }
+      .stat__label { font-size: 0.82rem; color: var(--muted); margin-bottom: 6px; }
+      .stat__value { font-size: 1.8rem; font-weight: 500; }
+      .stat__value small { font-size: 0.95rem; font-weight: 300; color: var(--muted); }
+
+      .banner { border-radius: 12px; padding: 12px 16px; margin-bottom: 12px; font-size: 0.95rem; display: none; }
+      .banner.show { display: block; }
+      .banner--finished { background: rgba(235, 106, 106, 0.14); color: #f2a3a3; }
+      .banner--time { background: rgba(230, 181, 102, 0.14); color: var(--warn); }
+      .banner--paused { background: rgba(123, 215, 160, 0.12); color: var(--ok); }
+
+      /* أقسام */
+      .panel { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; margin-bottom: 16px; }
+      .panel h2 { font-size: 1.05rem; font-weight: 500; margin-bottom: 16px; }
+      .field { margin-bottom: 14px; }
+      .field:last-child { margin-bottom: 0; }
+      .field label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; }
+      .field input[type="text"], .field input[type="number"] {
+        width: 100%; font-family: inherit; font-size: 1.05rem; color: var(--fg);
+        background: #0e0d10; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
+      }
+      .field input:focus { outline: 1px solid var(--accent); }
+      .row { display: flex; gap: 10px; }
+      .row .field { flex: 1; }
+
+      /* مفتاح تبديل */
+      .toggle { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; }
+      .toggle span { font-size: 0.98rem; }
+      .switch { position: relative; width: 52px; height: 30px; flex: none; }
+      .switch input { opacity: 0; width: 0; height: 0; }
+      .slider { position: absolute; inset: 0; background: #2a2830; border-radius: 999px; transition: 0.25s; }
+      .slider::before { content: ""; position: absolute; width: 24px; height: 24px; right: 3px; top: 3px; background: #fff; border-radius: 50%; transition: 0.25s; }
+      .switch input:checked + .slider { background: var(--accent); }
+      .switch input:checked + .slider::before { transform: translateX(-22px); }
+
+      .btn { width: 100%; font-family: inherit; font-size: 1.05rem; font-weight: 500; color: #201b18; background: linear-gradient(180deg, #d9bd84, #c9a86a); border: none; border-radius: 999px; padding: 15px; cursor: pointer; margin-top: 8px; }
+      .btn:active { transform: scale(0.98); }
+      .btn--ghost { background: transparent; color: var(--fg); box-shadow: inset 0 0 0 1px var(--line); }
+      .btn--danger { background: transparent; color: var(--error); box-shadow: inset 0 0 0 1px rgba(235, 106, 106, 0.4); }
+      .btn-row { display: flex; gap: 10px; }
+      .btn-row .btn { flex: 1; }
+
+      .note { font-size: 0.82rem; color: var(--muted); text-align: center; margin-top: 6px; }
+      .saved { color: var(--ok); font-size: 0.85rem; text-align: center; min-height: 1.2em; margin-top: 8px; }
+      a { color: var(--accent); }
+    </style>
+  </head>
+  <body>
+    <!-- بوابة الرمز -->
+    <div class="gate" id="gate">
+      <img class="gate__mark" src="assets/brand/mark-cream.png" alt="قمرا" />
+      <h1>لوحة المشغّل</h1>
+      <input class="pin" id="pin" type="password" inputmode="numeric" placeholder="••••" autocomplete="off" />
+      <p class="err" id="pin-err"></p>
+      <button class="btn" id="login" style="width: 200px">دخول</button>
+    </div>
+
+    <!-- اللوحة -->
+    <div class="dash hidden" id="dash">
+      <div class="head">
+        <div class="head__title">
+          <img class="brandmark" src="assets/brand/mark-cream.png" alt="قمرا" />
+          <h1>لوحة المشغّل</h1>
+        </div>
+        <span class="dot">مباشر</span>
+      </div>
+
+      <div class="banner banner--paused" id="banner-paused">الجلسة متوقّفة مؤقتاً.</div>
+      <div class="banner banner--finished" id="banner-finished">اكتمل عدد صور الباقة.</div>
+      <div class="banner banner--time" id="banner-time">انتهى وقت الجلسة.</div>
+
+      <div class="grid">
+        <div class="stat stat--wide">
+          <div class="stat__label">المتبقي من الباقة</div>
+          <div class="stat__value"><span id="v-remaining">—</span> <small>من <span id="v-limit">—</span></small></div>
+        </div>
+        <div class="stat">
+          <div class="stat__label">الملتقط</div>
+          <div class="stat__value" id="v-used">—</div>
+        </div>
+        <div class="stat stat--wide">
+          <div class="stat__label">الوقت المتبقي</div>
+          <div class="stat__value" id="v-time">—</div>
+        </div>
+      </div>
+
+      <!-- تحكّم الجلسة -->
+      <div class="panel">
+        <h2>تحكّم الجلسة</h2>
+        <div class="btn-row">
+          <button class="btn btn--ghost" id="btn-pause">إيقاف مؤقت</button>
+          <button class="btn btn--danger" id="btn-end">إنهاء الآن</button>
+        </div>
+        <div class="row" style="margin-top: 14px">
+          <div class="field"><label for="ex-photos">+ صور</label><input id="ex-photos" type="number" min="0" value="20" /></div>
+          <div class="field"><label for="ex-minutes">+ دقائق</label><input id="ex-minutes" type="number" min="0" value="30" /></div>
+        </div>
+        <button class="btn btn--ghost" id="btn-extend">تمديد الباقة</button>
+        <hr style="border: none; border-top: 1px solid var(--line); margin: 18px 0" />
+        <div class="row">
+          <div class="field"><label for="f-photos">عدد الصور</label><input id="f-photos" type="number" min="1" value="100" /></div>
+          <div class="field"><label for="f-minutes">المدة (دقائق)</label><input id="f-minutes" type="number" min="1" value="180" /></div>
+        </div>
+        <button class="btn" id="btn-reset">بدء مناسبة جديدة</button>
+        <p class="note">يُصفّر العدّاد ويبدأ الوقت من جديد.</p>
+      </div>
+
+      <!-- الإطار / الشعار -->
+      <div class="panel">
+        <h2>الإطار / الشعار</h2>
+        <div class="field">
+          <label>إطار / شعار على الصورة (PNG شفاف)</label>
+          <input id="overlay-file" type="file" accept="image/png" />
+        </div>
+        <div class="btn-row">
+          <button class="btn btn--ghost" id="btn-overlay-up">رفع الإطار</button>
+          <button class="btn btn--danger" id="btn-overlay-rm">إزالة</button>
+        </div>
+        <p class="note" id="overlay-state"></p>
+      </div>
+
+      <!-- شاشة التوقّف / ثيم المناسبة -->
+      <div class="panel">
+        <h2>شاشة التوقّف (ثيم المناسبة)</h2>
+        <div class="field">
+          <label>صورة تُعرض عند خمول الكشك دقيقتين (اختياري — PNG / JPG / WEBP)</label>
+          <input id="saver-file" type="file" accept="image/png,image/jpeg,image/webp" />
+        </div>
+        <div class="btn-row">
+          <button class="btn btn--ghost" id="btn-saver-up">رفع الصورة</button>
+          <button class="btn btn--danger" id="btn-saver-rm">إلغاء</button>
+        </div>
+        <p class="note" id="saver-state"></p>
+      </div>
+
+      <!-- الالتقاط -->
+      <div class="panel">
+        <h2>إعدادات الالتقاط</h2>
+        <div class="field">
+          <label for="s-timers">مدد المؤقت للضيف (ثوانٍ، مفصولة بفواصل)</label>
+          <input id="s-timers" type="text" placeholder="5, 10, 15" />
+        </div>
+        <div class="toggle"><span>قلب الصورة أفقياً (mirror)</span>
+          <label class="switch"><input type="checkbox" id="s-mirror" /><span class="slider"></span></label>
+        </div>
+        <div class="toggle"><span>وميض الفلاش</span>
+          <label class="switch"><input type="checkbox" id="s-flash" /><span class="slider"></span></label>
+        </div>
+      </div>
+
+      <!-- الطباعة -->
+      <div class="panel">
+        <h2>الطباعة</h2>
+        <div class="toggle"><span>تفعيل الطباعة</span>
+          <label class="switch"><input type="checkbox" id="s-print" /><span class="slider"></span></label>
+        </div>
+        <div class="field" style="margin-top: 10px">
+          <label for="s-copies">عدد النسخ لكل طباعة</label>
+          <input id="s-copies" type="number" min="1" max="5" value="1" />
+        </div>
+      </div>
+
+      <button class="btn" id="btn-save">حفظ الإعدادات</button>
+      <p class="saved" id="saved-msg"></p>
+
+      <!-- الأمان -->
+      <div class="panel" style="margin-top: 16px">
+        <h2>الأمان</h2>
+        <div class="field">
+          <label for="s-newpin">رمز دخول جديد (٤ أرقام على الأقل)</label>
+          <input id="s-newpin" type="password" inputmode="numeric" placeholder="••••" />
+        </div>
+        <button class="btn btn--ghost" id="btn-pin">تغيير الرمز</button>
+        <p class="note" id="pin-msg"></p>
+      </div>
+
+      <!-- الجهاز -->
+      <div class="panel">
+        <h2>الجهاز</h2>
+        <div class="btn-row">
+          <button class="btn btn--ghost" id="btn-reboot">إعادة التشغيل</button>
+          <button class="btn btn--danger" id="btn-poweroff">إطفاء</button>
+        </div>
+        <p class="note" id="system-msg">قد ينقطع الاتصال باللوحة بعد التنفيذ.</p>
+      </div>
+
+      <p class="note">شاشة الضيف: <a href="/">الصفحة الرئيسية</a></p>
+    </div>
+
+    <script src="js/admin.js"></script>
+  </body>
+</html>

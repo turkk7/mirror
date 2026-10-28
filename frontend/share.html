@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>قمرا — صورتك</title>
+    <meta name="theme-color" content="#0b0c12" />
+    <link rel="icon" type="image/png" href="/assets/brand/favicon-48.png" />
+    <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png" />
+    <link rel="stylesheet" href="/css/fonts.css" />
+    <style>
+      :root {
+        --ink: #0b0c12; --ink-2: #0d0e16; --cream: #f1ece1;
+        --muted: #938e85; --gold: #c9a86a;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        min-height: 100dvh;
+        font-family: "Tajawal", -apple-system, "Segoe UI", system-ui, sans-serif;
+        font-weight: 300;
+        background:
+          radial-gradient(80vmax 60vmax at 80% -10%, rgba(201,168,106,0.14), transparent 60%),
+          radial-gradient(80vmax 60vmax at -10% 110%, rgba(96,116,158,0.16), transparent 60%),
+          var(--ink);
+        color: var(--cream);
+        -webkit-font-smoothing: antialiased;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 26px;
+        padding: 32px 24px calc(32px + env(safe-area-inset-bottom));
+      }
+      .brand-row {
+        display: flex; align-items: center; gap: 10px;
+        opacity: 0; animation: up 0.7s cubic-bezier(.22,1,.36,1) forwards;
+      }
+      .brand-row img { width: 34px; height: 34px; object-fit: contain; }
+      .brand-row span { font-size: 1.05rem; font-weight: 500; letter-spacing: 0.18em; }
+
+      img.photo {
+        display: block;
+        width: min(82vw, 380px);
+        height: auto; /* نسبة الصورة الطبيعية (صورة + شريط اللوقو المدموج) */
+        border-radius: 12px;
+        background: #201b18;
+        box-shadow: 0 30px 70px rgba(0, 0, 0, 0.55);
+        opacity: 0;
+        animation: pop 0.9s cubic-bezier(.22,1,.36,1) 0.1s forwards;
+      }
+      .hint {
+        max-width: 320px;
+        text-align: center;
+        line-height: 1.8;
+        font-size: 0.98rem;
+        color: var(--muted);
+        opacity: 0;
+        animation: up 0.7s cubic-bezier(.22,1,.36,1) 0.35s forwards;
+      }
+      .hint b { color: var(--cream); font-weight: 500; }
+      .loading, .error { color: var(--muted); font-size: 1rem; text-align: center; }
+
+      @keyframes up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+      @keyframes pop { from { opacity: 0; transform: translateY(20px) scale(.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    </style>
+  </head>
+  <body>
+    <p class="loading" id="loading">…جارٍ تحميل صورتك</p>
+
+    <script>
+      const id = location.pathname.split("/").pop();
+
+      function el(tag, cls, html) {
+        const e = document.createElement(tag);
+        if (cls) e.className = cls;
+        if (html != null) e.innerHTML = html;
+        return e;
+      }
+
+      (async () => {
+        try {
+          // الصورة المخزّنة نهائية (الإطار والقلب مدموجان لحظة الالتقاط)
+          const photo = await fetch(`/api/photo/${id}`).then((r) => r.json());
+
+          const brand = el("div", "brand-row",
+            '<img src="/assets/brand/mark-cream.png" alt="" /><span>قمرا</span>');
+
+          const img = el("img", "photo");
+          img.src = photo.photo_url;
+          img.alt = "صورتك";
+
+          // تعليمات حفظ الصورة في الألبوم (الضغط المطوّل)
+          const isIOS =
+            /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+            (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+          const hint = el("p", "hint",
+            isIOS
+              ? 'لحفظ صورتك: المس الصورة مطوّلاً ثم اختر <b>«أضِف إلى الصور»</b>.'
+              : 'لحفظ صورتك: المس الصورة مطوّلاً ثم اختر <b>«حفظ الصورة»</b>.');
+
+          document.body.replaceChildren(brand, img, hint);
+        } catch {
+          document.body.replaceChildren(
+            el("p", "error", "تعذّر العثور على الصورة.")
+          );
+        }
+      })();
+    </script>
+  </body>
+</html>

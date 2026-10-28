@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1200" width="900" height="1200">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a2320" />
+      <stop offset="0.5" stop-color="#4a3b2e" />
+      <stop offset="1" stop-color="#1c1815" />
+    </linearGradient>
+    <radialGradient id="halo" cx="50%" cy="38%" r="45%">
+      <stop offset="0" stop-color="#e8cfa0" stop-opacity="0.55" />
+      <stop offset="1" stop-color="#e8cfa0" stop-opacity="0" />
+    </radialGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="6" /></filter>
+  </defs>
+
+  <rect width="900" height="1200" fill="url(#bg)" />
+  <rect width="900" height="1200" fill="url(#halo)" />
+
+  <!-- ظلّ شخص مبسّط -->
+  <g fill="#0f0d0b" opacity="0.55" filter="url(#soft)">
+    <circle cx="450" cy="470" r="150" />
+    <path d="M210 1200 C210 900 300 720 450 720 C600 720 690 900 690 1200 Z" />
+  </g>
+
+  <!-- كلمة عيّنة -->
+  <text x="450" y="1120" text-anchor="middle" font-family="Tajawal, sans-serif"
+        font-size="40" fill="#e8cfa0" opacity="0.7" letter-spacing="6">عيّنة</text>
+</svg>

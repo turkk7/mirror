@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" translate="no">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="google" content="notranslate" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <title>قمرا — مرآة الفوتوبوث</title>
+    <meta name="theme-color" content="#0b0c12" />
+
+    <!-- أيقونات العلامة -->
+    <link rel="icon" type="image/png" href="assets/brand/favicon-48.png" />
+    <link rel="apple-touch-icon" href="assets/brand/apple-touch-icon.png" />
+
+    <!-- تحميل مسبق: الخط + شعار الهوية (أول ما يظهر للضيف) -->
+    <link rel="preload" href="fonts/tajawal-300.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="assets/brand/qamra-lockup-hi.png" as="image" />
+
+    <link rel="stylesheet" href="css/styles.css" />
+    <link rel="stylesheet" href="css/screens.css" />
+    <style>
+      /* المعاينة الحيّة لكاميرا المتصفح — تملأ منطقة الصورة (2:3) بنفس قصّ الصورة الفعلية */
+      .capture__video {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        background: #000;
+        z-index: 0;
+        transform: scaleX(1);
+      }
+      /* القلب يطابق الصورة المحفوظة (يُفعّل حسب إعداد mirror_flip) */
+      .capture__video.is-mirrored { transform: scaleX(-1); }
+      .capture__video[hidden] { display: none; }
+    </style>
+  </head>
+  <body>
+    <!-- الخلفية المحيطة -->
+    <div class="ambient" aria-hidden="true">
+      <div class="ambient__glow ambient__glow--a"></div>
+      <div class="ambient__glow ambient__glow--b"></div>
+      <div class="ambient__grain"></div>
+    </div>
+
+    <!-- الشاشات -->
+    <div class="stage" id="stage">
+      <!-- شاشة الانتظار: لوحة الهوية -->
+      <section class="screen attract" data-screen="attract">
+        <div class="attract__inner">
+          <div class="brand" id="attract-hero">
+            <span class="brand__halo" aria-hidden="true"></span>
+            <img class="brand__img" src="assets/brand/qamra-lockup-hi.png" alt="قمرا" draggable="false" />
+            <span class="brand__sheen" aria-hidden="true"></span>
+          </div>
+          <span class="attract__cta" aria-hidden="true">المس لتبدأ</span>
+        </div>
+      </section>
+
+      <!-- شاشة التوقّف (ثيم المناسبة): صورة اختيارية تُعرض عند خمول الكشك -->
+      <section class="screen screensaver" data-screen="screensaver">
+        <img class="screensaver__img" id="screensaver-img" alt="" draggable="false" />
+      </section>
+
+      <!-- شاشة اختيار مدة المؤقت -->
+      <section class="screen chooser" data-screen="chooser">
+        <div class="chooser__inner">
+          <p class="chooser__title">مدة المؤقت</p>
+          <div class="chooser__options" id="chooser-options"></div>
+        </div>
+      </section>
+
+      <!-- شاشة الالتقاط: بطاقة معاينة بنسبة الصورة النهائية (صورة 2:3 + شريط اللوقو) -->
+      <section class="screen capture" data-screen="capture">
+        <div class="capture__stage">
+          <div class="capture__frame">
+            <video class="capture__video" id="cam-video" playsinline muted hidden></video>
+            <!-- معاينة Live View من الكانون (gphoto2) — بثّ MJPEG يُعرض كصورة حيّة -->
+            <img class="capture__video" id="cam-preview" alt="" draggable="false" hidden />
+            <canvas id="cam-canvas" hidden></canvas>
+            <div class="viewfinder" aria-hidden="true">
+              <span class="viewfinder__corner viewfinder__corner--tl"></span>
+              <span class="viewfinder__corner viewfinder__corner--tr"></span>
+              <span class="viewfinder__corner viewfinder__corner--bl"></span>
+              <span class="viewfinder__corner viewfinder__corner--br"></span>
+            </div>
+            <div class="capture__hud">
+              <p class="capture__prompt" id="capture-prompt">انظر إلى المرآة</p>
+              <!-- العدّاد = رقم ضخم جداً فوق المعاينة الحيّة (تصميم مبسّط) -->
+              <div class="countdown" id="countdown-ring" aria-hidden="true">
+                <span class="capture__count" id="countdown"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- شاشة النتيجة: بطاقة الصورة + أزرار -->
+      <section class="screen result" data-screen="result">
+        <div class="result__inner">
+          <figure class="result__frame">
+            <div class="result__card">
+              <div class="result__photo-wrap">
+                <img class="result__photo" id="result-photo" alt="صورتك" />
+                <img class="result__overlay" id="result-overlay" alt="" hidden />
+              </div>
+            </div>
+          </figure>
+          <div class="result__actions">
+            <button class="btn btn--primary" id="btn-print" type="button">
+              اطبع
+            </button>
+            <button class="btn--home" id="btn-home" type="button" aria-label="العودة للشاشة الرئيسية">
+              <svg class="btn--home__icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 11.5 12 5l8 6.5M6 10.25V19h12v-8.75" />
+              </svg>
+              <span>إنهاء</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- شاشة الطباعة -->
+      <section class="screen printing" data-screen="printing">
+        <div class="status-view">
+          <span class="spinner" aria-hidden="true"></span>
+          <p class="status-view__text">جارٍ الطباعة…</p>
+        </div>
+      </section>
+
+      <!-- شاشة التأكيد -->
+      <section class="screen done" data-screen="done">
+        <div class="status-view">
+          <span class="check" aria-hidden="true">
+            <svg viewBox="0 0 52 52"><path d="M14 27 l8 8 l16 -18" /></svg>
+          </span>
+          <p class="status-view__text">تم! خذ صورتك من الطابعة</p>
+        </div>
+      </section>
+
+      <!-- شاشة الإيقاف المؤقت -->
+      <section class="screen paused" data-screen="paused">
+        <div class="status-view">
+          <p class="status-view__text">سنعود بعد لحظات</p>
+          <p class="status-view__sub">الجهاز متوقّف مؤقتاً</p>
+        </div>
+      </section>
+
+      <!-- شاشة اكتمال عدد الصور (رسالة راقية للضيف) -->
+      <section class="screen finished" data-screen="finished">
+        <div class="status-view">
+          <p class="status-view__text">شكراً لكم 🤍</p>
+          <p class="status-view__sub">اكتمل عدد الصور لهذه المناسبة</p>
+        </div>
+      </section>
+    </div>
+
+    <!-- توقيع العلامة (يظهر على الشاشات الثانوية فقط) -->
+    <div class="sig" aria-hidden="true">
+      <img class="sig__mark" src="assets/brand/mark-cream.png" alt="" />
+      <span class="sig__word">قمرا</span>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>
