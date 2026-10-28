@@ -96,13 +96,20 @@ class TouchReader:
         """
         last_seq = 0
         while True:
+            # نحدّد الحدث داخل القفل ثم نرسله بعد الخروج منه: ‪yield‬ يُعلّق المولّد،
+            # فلو أرسلناه داخل ‪with‬ وتلكّأ العميل لبقي القفل محجوزاً ومنع ‪_run()‬ من
+            # نشر إطارات الحسّاس الجديدة (تجمّد بثّ اللمس).
+            line = None
+            keepalive = False
             with self._cond:
                 if self._seq == last_seq:
                     self._cond.wait(timeout=timeout)
                 if self._seq == last_seq:
-                    yield ": keepalive\n\n"
-                    continue
-                last_seq = self._seq
-                line = self._latest
-            if line:
+                    keepalive = True
+                else:
+                    last_seq = self._seq
+                    line = self._latest
+            if keepalive:
+                yield ": keepalive\n\n"
+            elif line:
                 yield f"data: {line}\n\n"

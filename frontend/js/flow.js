@@ -274,12 +274,23 @@ export class CaptureFlow {
       const data = await (capturePromise || this.#capture());
       this.#stopPreview();
 
+      // فشل الالتقاط (الخادم ردّ بخطأ، أو بلا photo_url): لا نعرض صورة العيّنة كأنها
+      // "صورتك"، ولا نترك الضيف عالقاً على شاشة الالتقاط — نعود لشاشة الانتظار.
+      if (!data || data.ok === false || !data.photo_url) {
+        this.router.show("attract");
+        return;
+      }
+
       // حدّث رصيد الباقة محلياً (العدّاد يُخصم مع كل التقاطة) حتى يُقفل عند النفاد
-      if (data && typeof data.remaining === "number") this.remaining = data.remaining;
+      if (typeof data.remaining === "number") this.remaining = data.remaining;
 
       await wait(450);
-      await this.#showResult(data.photo_url || "/assets/sample.svg");
+      await this.#showResult(data.photo_url);
       this.#armIdle();
+    } catch (e) {
+      // استثناء (رفض fetch أثناء العدّ/الالتقاط): لا نترك الكشك عالقاً — نعود للانتظار.
+      console.error("[mirror] فشل دورة الالتقاط:", e);
+      this.router.show("attract");
     } finally {
       this.busy = false;
       this.#stopPreview(); // ضمان إيقاف الكاميرا في كل الحالات

@@ -138,7 +138,9 @@ def create_app() -> Flask:
     # calibrate = علم يأمر الكيوسك ببدء روتين المعايرة التفاعلي.
     TOUCH_CAL_DEFAULT = {
         "points": [], "dTop": 470, "dBottom": 85,
-        "minMm": 80, "maxMm": 1100, "calibrate": False,
+        # maxMm يجب أن يتجاوز القمّة (~١٣٨٥مم في الشاشة الطولية، وضع Long) وإلا رُفضت
+        # نقطة المعايرة العليا؛ ويبقى دون خلفية المشهد الفارغ ~٢٧٠٠مم. (قيمة البوث.)
+        "minMm": 80, "maxMm": 1500, "calibrate": False,
         # هامش منع النقر المزدوج: إطارات الضغط/التحرّر + تهدئة بعد النقرة (مل‌ث).
         "pressFrames": 3, "releaseFrames": 8, "cooldownMs": 450,
         # رقم إصدار: رفعه يأمر الكيوسك بإعادة تحميل نفسه (لتفعيل JS جديد بلا إقلاع).
@@ -393,7 +395,19 @@ def create_app() -> Flask:
     def touch_cal_set():
         # يُسمح من الكيوسك محلياً (127.0.0.1) بلا PIN — بيانات معايرة غير حسّاسة ولا
         # يملك المتصفّح الرمز؛ من الشبكة (Tailscale) يلزم PIN المشغّل.
-        is_local = request.remote_addr in ("127.0.0.1", "::1", "localhost")
+        #
+        # تنبيه أمني: ‪request.remote_addr‬ يكون 127.0.0.1 أيضاً للطلبات التي يمرّرها
+        # وكيل عكسي (Tailscale Funnel) من الإنترنت عبر اللووباك، فيتجاوز الـPIN. لذا
+        # نعتبر الطلب محلياً فقط إن لم يحمل ترويسات تمرير (XFF/Forwarded) — فالكيوسك
+        # المحلي يخاطب Flask مباشرة بلا وكيل. (الدفاع الأساسي: ألّا يُمرِّر Funnel هذا
+        # المسار أصلاً — راجع إعداد tailscale serve/funnel ليقصره على مسارات المشاركة.)
+        forwarded = any(
+            h in request.headers
+            for h in ("X-Forwarded-For", "X-Forwarded-Host", "Forwarded")
+        )
+        is_local = not forwarded and request.remote_addr in (
+            "127.0.0.1", "::1", "::ffff:127.0.0.1",
+        )
         if not (is_local or _check_pin()):
             return jsonify(ok=False, error="unauthorized"), 401
         body = request.get_json(silent=True) or {}

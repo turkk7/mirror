@@ -24,7 +24,9 @@ const STORAGE_KEY = "qamra.touchcal.single";
 // (لا نستخدم خطّ أساس لأن الفارغ لا يُعطي قراءة بعيدة ثابتة في هذا التركيب.)
 const cfg = {
   minMm: 80,        // مل‌م: أقرب مسافة نقبلها (أقلّ = ضجيج/حافة الإطار)
-  maxMm: 1100,      // مل‌م: أبعد مسافة نقبلها (قبل الخلفية البعيدة)
+  // مل‌م: أبعد مسافة نقبلها. القمّة في الشاشة الطولية ≈ ١٣٨٥مم (وضع Long يغطّي ~٥٠–١٤٠٠)،
+  // فلا بدّ أن تتجاوزها البوابة وإلا رُفضت نقطة المعايرة العليا؛ وتبقى دون خلفية ~٢٧٠٠مم.
+  maxMm: 1500,      // (قيمة مثبّتة ميدانياً على البوث — راجع docs/touch_cal.booth.json)
   pressFrames: 3,   // إطارات حضور متتالية قبل اعتماد الضغط (down)
   releaseFrames: 8, // إطارات غياب متتالية قبل اعتماد التحرّر (up) — هامش ضدّ الانقطاع اللحظي
   cooldownMs: 450,  // تهدئة بعد كل نقرة (تمنع نقرة ثانية فورية)
@@ -44,6 +46,7 @@ const state = {
   touching: false,
   lastNy: cfg.nx,          // آخر موضع رأسي صالح (نَنقر عنده عند الانسحاب)
   lastRaw: { d: 0, v: 0 },
+  seq: 0,                  // عدّاد يتزايد مع كل إطار وارد (لتمييز الإطار الجديد في المعايرة)
   cooldownUntil: 0,        // لا نبدأ ضغطاً جديداً قبل هذا الوقت (تهدئة بعد النقرة)
 };
 
@@ -123,7 +126,13 @@ function connect() {
     return;
   }
   es.onopen = () => onStatus("connected");
-  es.onerror = () => onStatus("reconnecting"); // EventSource يعيد المحاولة تلقائياً
+  es.onerror = () => {
+    // قد ينقطع البثّ أثناء لمسة قائمة: نُلغيها فوراً، وإلا أطلقت إطاراتُ الغياب بعد
+    // إعادة الاتصال نقرةً مؤجّلة عند الموضع القديم (قد تكون طباعة غير مقصودة في شاشة
+    // النتيجة). إعادة الاتصال لا تأتي بـS,ready فلا تصفير تلقائي من البروتوكول.
+    resetTouch();
+    onStatus("reconnecting"); // EventSource يعيد المحاولة تلقائياً
+  };
   es.onmessage = (ev) => {
     const line = (ev.data || "").trim();
     if (line) handleLine(line);
@@ -147,6 +156,7 @@ function handleLine(line) {
 
 function onFrame(d, v) {
   state.lastRaw = { d, v };
+  state.seq++;  // إطار جديد وصل (قبل أي تفرّع) — تعتمد عليه المعايرة لعدّ الإطارات الطازجة
 
   // أثناء المعايرة لا نحقن نقراً — الروتين يلتقط العيّنات من state.lastRaw مباشرةً.
   if (calibrating) { updateHud(); return; }
@@ -299,10 +309,14 @@ async function runCalibration() {
 // يلتقط وسيط المسافة للعيّنات الصالحة خلال ms (يقرأ آخر إطار حيّ من البثّ).
 async function captureMedian(ms, ui) {
   const vals = [];
+  let lastSeq = state.seq;  // لا نعدّ إلا الإطارات الطازجة: لو توقّف البثّ لا تتراكم
   const end = performance.now() + ms;
   while (performance.now() < end) {
-    const r = state.lastRaw;
-    if (r.v === 1 && r.d >= cfg.minMm && r.d <= cfg.maxMm) vals.push(r.d);
+    if (state.seq !== lastSeq) {  // وصل إطار جديد منذ آخر فحص فقط
+      lastSeq = state.seq;
+      const r = state.lastRaw;
+      if (r.v === 1 && r.d >= cfg.minMm && r.d <= cfg.maxMm) vals.push(r.d);
+    }
     if (ui) ui.setProgress((ms - (end - performance.now())) / ms);
     await wait(40);
   }
@@ -384,8 +398,10 @@ function exposeConsoleApi() {
     raw: () => ({ ...state.lastRaw, present: state.present, ny: state.lastNy }),
     getCal: () => ({ ...cal }),
     setCal: (obj) => { Object.assign(cal, obj); saveCal(); return cal; },
-    markTop:    () => { cal.dTop    = state.lastRaw.d; saveCal(); return cal; },
-    markBottom: () => { cal.dBottom = state.lastRaw.d; saveCal(); return cal; },
+    // ضبط يدوي بنقطتين: نمسح نقاط الخمس-نقاط (وإلا تجاهلها mapToNy) ونثبّت القيمة على
+    // الخادم (POST) حتى لا يُعيدها sync التالي من القيم المحفوظة.
+    markTop:    () => { cal.points = []; cal.dTop    = state.lastRaw.d; saveCal(); postCal({ points: [], dTop: cal.dTop }); return cal; },
+    markBottom: () => { cal.points = []; cal.dBottom = state.lastRaw.d; saveCal(); postCal({ points: [], dBottom: cal.dBottom }); return cal; },
     tune: (obj) => { Object.assign(cfg, obj); return { ...cfg }; },
     reset: () => { resetTouch(); return "أُعيد ضبط حالة اللمس"; },
     calibrate: () => { runCalibration(); return "بدأ روتين المعايرة"; },
